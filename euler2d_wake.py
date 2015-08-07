@@ -47,20 +47,34 @@ def diffx(w):
 def diffy(w):
     return (w[1:-1,2:] - w[1:-1,:-2]) / (2 * dy)
 
+def diffusion(w):
+    diffx = w[2:-2,4: ] - 4*w[2:-2,3:-1] + 6*w[2:-2,2:-2] \
+          + w[2:-2,:-4] - 4*w[2:-2,1:-3]
+    diffy = w[4: ,2:-2] - 4*w[3:-1,2:-2] + 6*w[2:-2,2:-2] \
+          + w[:-4,2:-2] - 4*w[1:-3,2:-2]
+    return (diffx + diffy) / 12
+
 def rhs(w):
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
     u, v = ru / r, rv / r
 
+    mass = diffx(r * ru) + diffy(r * rv)
+    momentum_x = (diffx(ru*ru) + (r*ru)[1:-1,1:-1] * diffx(u)) / 2.0 \
+               + (diffy(rv*ru) + (r*rv)[1:-1,1:-1] * diffy(u)) / 2.0 \
+               + diffx(p)
+    momentum_x[1:-1,1:-1] += diffusion(r * ru) * c0 / dx
+    momentum_y = (diffx(ru*rv) + (r*ru)[1:-1,1:-1] * diffx(v)) / 2.0 \
+               + (diffy(rv*rv) + (r*rv)[1:-1,1:-1] * diffy(v)) / 2.0 \
+               + diffy(p)
+    momentum_y[1:-1,1:-1] += diffusion(r * rv) * c0 / dx
+    energy = gamma * (diffx(p * u) + diffy(p * v)) \
+           - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
+
     rhs_w = zeros(w[1:-1,1:-1].shape)
-    rhs_w[:,:,0] = 0.5 * (diffx(r * ru) + diffy(r * rv)) / r[1:-1,1:-1]
-    rhs_w[:,:,1] = ((diffx(ru*ru) + (r*ru)[1:-1,1:-1] * diffx(u)) / 2.0 \
-                  + (diffy(rv*ru) + (r*rv)[1:-1,1:-1] * diffy(u)) / 2.0 \
-                  + diffx(p)) / r[1:-1,1:-1]
-    rhs_w[:,:,2] = ((diffx(ru*rv) + (r*ru)[1:-1,1:-1] * diffx(v)) / 2.0 \
-                  + (diffy(rv*rv) + (r*rv)[1:-1,1:-1] * diffy(v)) / 2.0 \
-                  + diffy(p)) / r[1:-1,1:-1]
-    rhs_w[:,:,-1] = gamma * (diffx(p * u) + diffy(p * v)) \
-            - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
+    rhs_w[:,:,0] = 0.5 * mass / r[1:-1,1:-1]
+    rhs_w[:,:,1] = momentum_x / r[1:-1,1:-1]
+    rhs_w[:,:,2] = momentum_y / r[1:-1,1:-1]
+    rhs_w[:,:,-1] = energy
 
     rhs_w[i_obstacle,j_obstacle,1:3] += \
             100 * w[i_obstacle_ext, j_obstacle_ext, 1:3]
