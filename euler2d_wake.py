@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use('agg')
 matplotlib.interactive(False)
 
+import sys
 import time
 from pylab import *
 from numpy import *
@@ -62,7 +63,7 @@ def rhs(w):
             - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
 
     rhs_w[i_obstacle,j_obstacle,1:3] += \
-            10 * w[i_obstacle_ext, j_obstacle_ext, 1:3]
+            100 * w[i_obstacle_ext, j_obstacle_ext, 1:3]
     return rhs_w
 
 def apply_bc(w):
@@ -159,11 +160,11 @@ print(conserved(w))
 
 figure(figsize=(18,10))
 for iplot in range(5000):
-    for istep in range(1):
-        w = solve(midpoint_res, w, (w,))
+    for istep in range(10):
+        w = solve(midpoint_res, w, (w,), rel_tol=1E-9)
         # w = solve(midpoint_res, w, (w,), verbose=False)
         w.obliviate()
-        print(istep)
+        sys.stdout.flush()
     print(conserved(w))
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
     rho, u, v = r * r, ru / r, rv / r
