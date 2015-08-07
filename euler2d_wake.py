@@ -1,5 +1,6 @@
 import matplotlib
-matplotlib.interactive(True)
+matplotlib.use('agg')
+matplotlib.interactive(False)
 
 import time
 from pylab import *
@@ -14,25 +15,25 @@ def T_ratio(M2):
 def p_ratio(M2):
     return T_ratio(M2)**(gamma / (gamma - 1))
 
-T0, p0, M0 = 300., 101325., 0.2
+T0, p0, M0 = 300., 101325., 0.05
 
 rho0 = p0 / (R * T0)
 c0 = sqrt(gamma * R * T0)
+u0 = c0 * M0
 
 R_plus_in = c0 * M0 + 2 * c0 / (gamma - 1)
 S_in = p0 / rho0**gamma
 R_minus_out = c0 * M0 - 2 * c0 / (gamma - 1)
 
-rho0 = p0 / (R * T0)
-c0 = sqrt(gamma * p0 / rho0)
-u0 = c0 * M0
-
-Lx, Ly = 10., 5.
-dx = dy = 0.2
+Lx, Ly = 20., 5.
+dx = dy = 0.1
 dt = dx / u0
 Nx, Ny = int(Lx / dx), int(Ly / dy)
 x = arange(Nx) * dx + 0.5 * dx
-y = arange(Ny) * dy + 0.5 * dy
+y = arange(Ny) * dy + 0.5 * (dy - Ly)
+
+j_obstacle = (abs(y) < 1)
+j_obstacle_ext = j_obstacle.nonzero()[0] + 1
 
 def diffx(w):
     return (w[2:,1:-1] - w[:-2,1:-1]) / (2 * dx)
@@ -73,6 +74,8 @@ def apply_bc(w):
     p_ext = (r_ext * c_ext)**2 / gamma
 
     w_ext[0,1:-1,:] = transpose([r_ext, r_ext * u_ext, rv * 0, p_ext])
+    w_ext[0,j_obstacle_ext,:] = w[0,j_obstacle,:]
+    w_ext[0,j_obstacle_ext,1] *= -1
 
     # outlet
     r, ru, rv, p = w[-1,:,:].T
@@ -130,7 +133,7 @@ def ddt_conserved(w, rhs_w):
             + 0.5 * ddt_rhou2.sum() + 0.5 * ddt_rhov2.sum()
     return ddt_mass, ddt_momentum_x, ddt_momentum_y, ddt_energy
 
-wave = 1 + 0.1 * outer(sin(x / Lx * pi)**64, sin(y / Ly * pi)**32)
+wave = 1 + 0.0 * outer(sin(x / Lx * pi)**64, sin(y / Ly * pi)**32)
 rho = rho0 * wave
 p = p0 * wave**gamma
 u = u0 * ones(wave.shape)
@@ -142,14 +145,14 @@ w[:,:,1] = sqrt(rho) * u
 w[:,:,2] = sqrt(rho) * v
 w[:,:,-1] = p
 
-# w *= 0.9 + 0.2 * random.random(w.shape)
+w[:,:,1] *= 1 + 0.01 * (random.random(w[:,:,1].shape) - 0.5)
 
 print(ddt_conserved(w, rhs(apply_bc(w))))
 
 print(conserved(w))
 
 figure(figsize=(18,10))
-for iplot in range(50):
+for iplot in range(5000):
     for istep in range(10):
         # w = solve(midpoint_res, w, (w,))
         w = solve(midpoint_res, w, (w,), verbose=False)
@@ -158,14 +161,11 @@ for iplot in range(50):
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
     rho, u, v = r * r, ru / r, rv / r
     clf()
-    subplot(2,2,1); contour(x, y, value(rho / rho0).T, 50);
+    u_range = linspace(-u0, u0 * 2, 100)
+    subplot(2,1,1); contourf(x, y, value(u).T, u_range);
     axis('scaled'); colorbar()
-    subplot(2,2,2); contour(x, y, value(u / u0).T, 50);
+    v_range = linspace(-u0, u0, 100)
+    subplot(2,1,2); contourf(x, y, value(v).T, v_range);
     axis('scaled'); colorbar()
-    subplot(2,2,3); contour(x, y, value(v / u0).T, 50);
-    axis('scaled'); colorbar()
-    subplot(2,2,4); contour(x, y, value(p / p0).T, 50);
-    axis('scaled'); colorbar()
-    draw()
-    time.sleep(0.5)
+    savefig('fig{0:06d}.png'.format(iplot))
 
