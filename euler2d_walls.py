@@ -14,7 +14,7 @@ def T_ratio(M2):
 def p_ratio(M2):
     return T_ratio(M2)**(gamma / (gamma - 1))
 
-T0, p0, M0 = 300., 101325., 0.2
+T0, p0, M0 = 300., 101325., 0.5
 
 pt_in = p0 * p_ratio(M0**2)
 Tt_in = T0 * T_ratio(M0**2)
@@ -29,7 +29,7 @@ c0 = sqrt(gamma * p0 / rho0)
 u0 = c0 * M0
 
 Lx, Ly = 10., 5.
-dx = dy = 0.2
+dx = dy = 0.1
 dt = dx / u0
 Nx, Ny = int(Lx / dx), int(Ly / dy)
 x = arange(Nx) * dx + 0.5 * dx
@@ -68,10 +68,12 @@ def apply_bc(w):
     w_ext[-1,1:-1] = w[0,:]
 
     # upper wall
-    w_ext[:,0] = w_ext[:,-2]
+    w_ext[:,0] = w_ext[:,1]
+    w_ext[:,0,2] *= -1
 
     # lower wall
-    w_ext[:,-1] = w_ext[:,1]
+    w_ext[:,-1] = w_ext[:,-2]
+    w_ext[:,-1,2] *= -1
 
     return w_ext
 
@@ -107,11 +109,11 @@ def ddt_conserved(w, rhs_w):
             + 0.5 * ddt_rhou2.sum() + 0.5 * ddt_rhov2.sum()
     return ddt_mass, ddt_momentum_x, ddt_momentum_y, ddt_energy
 
-wave = 1 + 0.1 * outer(sin(x / Lx * pi)**32, sin(y / Ly * pi)**8)
+wave = 1 + 0.1 * outer(sin(x / Lx * pi)**64, sin(y / Ly * pi)**32)
 rho = rho0 * wave
 p = p0 * wave**gamma
 u = u0 * ones(wave.shape)
-v = u0 * ones(wave.shape)
+v = zeros(wave.shape)
 
 w = zeros([Nx, Ny, 4])
 w[:,:,0] = sqrt(rho)
@@ -125,6 +127,7 @@ print(ddt_conserved(w, rhs(apply_bc(w))))
 
 print(conserved(w))
 
+figure(figsize=(18,10))
 for iplot in range(50):
     for istep in range(1):
         # w = solve(midpoint_res, w, (w,))
