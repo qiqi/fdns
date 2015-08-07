@@ -38,8 +38,8 @@ y_ext = arange(Ny+2) * dy - 0.5 * dy - 0.5 * Ly
 
 i_obstacle = slice((x < -1).sum(), (x < 1).sum())
 i_obstacle_ext = slice((x_ext < -1).sum(), (x_ext < 1).sum())
-j_obstacle = slice((y < -1).sum(), (y < 1).sum())
-j_obstacle_ext = slice((y_ext < -1).sum(), (y_ext < 1).sum())
+j_obstacle = slice((y < -.5).sum(), (y < .5).sum())
+j_obstacle_ext = slice((y_ext < -.5).sum(), (y_ext < .5).sum())
 
 def diffx(w):
     return (w[2:,1:-1] - w[:-2,1:-1]) / (2 * dx)
@@ -163,8 +163,10 @@ for iplot in range(5000):
     for istep in range(10):
         w = solve(midpoint_res, w, (w,), rel_tol=1E-9)
         # w = solve(midpoint_res, w, (w,), verbose=False)
+        print(r'<br>')
         w.obliviate()
         sys.stdout.flush()
+    print(r'<br>')
     print(conserved(w))
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
     rho, u, v = r * r, ru / r, rv / r
