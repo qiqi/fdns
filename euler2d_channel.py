@@ -14,7 +14,7 @@ def T_ratio(M2):
 def p_ratio(M2):
     return T_ratio(M2)**(gamma / (gamma - 1))
 
-T0, p0, M0 = 300., 101325., 0.5
+T0, p0, M0 = 300., 101325., 0.2
 
 pt_in = p0 * p_ratio(M0**2)
 Tt_in = T0 * T_ratio(M0**2)
@@ -29,7 +29,7 @@ c0 = sqrt(gamma * p0 / rho0)
 u0 = c0 * M0
 
 Lx, Ly = 10., 5.
-dx = dy = 0.1
+dx = dy = 0.2
 dt = dx / u0
 Nx, Ny = int(Lx / dx), int(Ly / dy)
 x = arange(Nx) * dx + 0.5 * dx
@@ -62,10 +62,32 @@ def apply_bc(w):
     w_ext[1:-1,1:-1] = w
 
     # inlet
-    w_ext[0,1:-1] = w[-1,:]
+    r, ru, rv, p = w[0,:,:].T
+    c = sqrt(gamma) * sqrt(p) / r
+    R_plus = ct_in * M0 + 2 * ct_in / (gamma - 1)
+    R_minus = ru / r - 2 * c / (gamma - 1)
+    S = pt_in / rhot_in**gamma
+
+    u_ext = (R_plus + R_minus) / 2
+    c_ext = (R_plus - R_minus) * (gamma - 1) / 4
+    r_ext = (c_ext**2 / gamma / S) ** (0.5 / (gamma - 1))
+    p_ext = (r_ext * c_ext)**2 / gamma
+
+    w_ext[0,1:-1,:] = transpose([r_ext, r_ext * u_ext, rv * 0, p_ext])
 
     # outlet
-    w_ext[-1,1:-1] = w[0,:]
+    r, ru, rv, p = w[-1,:,:].T
+    c = sqrt(gamma) * sqrt(p) / r
+    R_plus = ru / r + 2 * c / (gamma - 1)
+    S = p / r**(2 * gamma)
+    R_minus = c_out * M0 - 2 * c_out / (gamma - 1)
+
+    u_ext = (R_plus + R_minus) / 2
+    c_ext = (R_plus - R_minus) * (gamma - 1) / 4
+    r_ext = (c_ext**2 / gamma / S) ** (0.5 / (gamma - 1))
+    p_ext = (r_ext * c_ext)**2 / gamma
+
+    w_ext[-1,1:-1,:] = transpose([r_ext, r_ext * u_ext, rv * 0, p_ext])
 
     # upper wall
     w_ext[:,0] = w_ext[:,1]
@@ -129,7 +151,7 @@ print(conserved(w))
 
 figure(figsize=(18,10))
 for iplot in range(50):
-    for istep in range(1):
+    for istep in range(10):
         # w = solve(midpoint_res, w, (w,))
         w = solve(midpoint_res, w, (w,), verbose=False)
         w.obliviate()
