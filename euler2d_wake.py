@@ -161,9 +161,9 @@ print(conserved(w))
 figure(figsize=(18,10))
 for iplot in range(5000):
     for istep in range(10):
+        print(r'<br>')
         w = solve(midpoint_res, w, (w,), rel_tol=1E-9)
         # w = solve(midpoint_res, w, (w,), verbose=False)
-        print(r'<br>')
         w.obliviate()
         sys.stdout.flush()
     print(r'<br>')
