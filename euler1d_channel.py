@@ -33,7 +33,11 @@ T0, p0, M0 = 300., 101325., 0.5
 
 pt_in = p0 * p_ratio(M0**2)
 Tt_in = T0 * T_ratio(M0**2)
+rhot_in = pt_in / (R * Tt_in)
+ct_in = sqrt(gamma * R * Tt_in)
+
 p_out = p0
+c_out = sqrt(gamma * p_out / rhot_in)
 
 rho0 = p0 / (R * T0)
 c0 = sqrt(gamma * p0 / rho0)
@@ -41,7 +45,7 @@ u0 = c0 * M0
 
 L = 10.
 dx = 0.02
-dt = dx / u0
+dt = 5 * dx / u0
 N = int(L / dx)
 x = arange(N) * dx + 0.5 * dx
 
@@ -64,21 +68,32 @@ def apply_bc(w):
 
     # inlet
     r, ru, p = w[0,:]
-    c2 = gamma * p / r**2
-    rhoc = sqrt(gamma) * sqrt(p) * r
-    w_ext[0,:] = inlet_condition(pt_in, Tt_in, p / rhoc - ru / r)
-    # w_ext[0,:] = [rho0, w[0,1], pt_in - 0.5 * w[0,1]**2]
+    c = sqrt(gamma) * sqrt(p) / r
+    R_plus = 2 * ct_in / (gamma - 1)
+    R_minus = ru / r - 2 * c / (gamma - 1)
+    S = pt_in / rhot_in**gamma
+
+    u_ext = (R_plus + R_minus) / 2
+    c_ext = (R_plus - R_minus) * (gamma - 1) / 4
+    r_ext = (c_ext**2 / gamma / S) ** (0.5 / (gamma - 1))
+    p_ext = (r_ext * c_ext)**2 / gamma
+
+    w_ext[0,:] = [r_ext, r_ext * u_ext, p_ext]
 
     # outlet
     r, ru, p = w[-1,:]
-    c2 = gamma * p / r**2
-    rhoc = sqrt(gamma) * sqrt(p) * r
+    c = sqrt(gamma) * sqrt(p) / r
+    R_plus = ru / r + 2 * c / (gamma - 1)
+    S = p / r**(2 * gamma)
+    R_minus = -2 * c_out / (gamma - 1)
 
-    dp = p_out - p
-    dr = dp / (2 * r * c2)
-    du = -dp / rhoc
-    dru = r * du + (ru / r) * dr
-    w_ext[-1,:] = [w[-1,0] + dr, w[-1,1] + dru, w[-1,2] + dp]
+    u_ext = (R_plus + R_minus) / 2
+    c_ext = (R_plus - R_minus) * (gamma - 1) / 4
+    r_ext = (c_ext**2 / gamma / S) ** (0.5 / (gamma - 1))
+    p_ext = (r_ext * c_ext)**2 / gamma
+
+    w_ext[-1,:] = [r_ext, r_ext * u_ext, p_ext]
+
     return w_ext
 
 def midpoint_res(w1, w0):
