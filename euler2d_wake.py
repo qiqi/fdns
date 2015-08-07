@@ -29,11 +29,16 @@ Lx, Ly = 20., 5.
 dx = dy = 0.1
 dt = dx / u0
 Nx, Ny = int(Lx / dx), int(Ly / dy)
-x = arange(Nx) * dx + 0.5 * dx
-y = arange(Ny) * dy + 0.5 * (dy - Ly)
+x = arange(Nx) * dx + 0.5 * dx - 0.1 * Lx
+y = arange(Ny) * dy + 0.5 * dy - 0.5 * Ly
 
-j_obstacle = (abs(y) < 1)
-j_obstacle_ext = j_obstacle.nonzero()[0] + 1
+x_ext = arange(Nx+2) * dx - 0.5 * dx - 0.1 * Lx
+y_ext = arange(Ny+2) * dy - 0.5 * dy - 0.5 * Ly
+
+i_obstacle = slice((x < -1).sum(), (x < 1).sum())
+i_obstacle_ext = slice((x_ext < -1).sum(), (x_ext < 1).sum())
+j_obstacle = slice((y < -1).sum(), (y < 1).sum())
+j_obstacle_ext = slice((y_ext < -1).sum(), (y_ext < 1).sum())
 
 def diffx(w):
     return (w[2:,1:-1] - w[:-2,1:-1]) / (2 * dx)
@@ -55,6 +60,9 @@ def rhs(w):
                   + diffy(p)) / r[1:-1,1:-1]
     rhs_w[:,:,-1] = gamma * (diffx(p * u) + diffy(p * v)) \
             - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
+
+    rhs_w[i_obstacle,j_obstacle,1:3] += \
+            10 * w[i_obstacle_ext, j_obstacle_ext, 1:3]
     return rhs_w
 
 def apply_bc(w):
@@ -74,8 +82,6 @@ def apply_bc(w):
     p_ext = (r_ext * c_ext)**2 / gamma
 
     w_ext[0,1:-1,:] = transpose([r_ext, r_ext * u_ext, rv * 0, p_ext])
-    w_ext[0,j_obstacle_ext,:] = w[0,j_obstacle,:]
-    w_ext[0,j_obstacle_ext,1] *= -1
 
     # outlet
     r, ru, rv, p = w[-1,:,:].T
@@ -153,10 +159,11 @@ print(conserved(w))
 
 figure(figsize=(18,10))
 for iplot in range(5000):
-    for istep in range(10):
-        # w = solve(midpoint_res, w, (w,))
-        w = solve(midpoint_res, w, (w,), verbose=False)
+    for istep in range(1):
+        w = solve(midpoint_res, w, (w,))
+        # w = solve(midpoint_res, w, (w,), verbose=False)
         w.obliviate()
+        print(istep)
     print(conserved(w))
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
     rho, u, v = r * r, ru / r, rv / r

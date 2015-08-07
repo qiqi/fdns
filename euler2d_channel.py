@@ -150,9 +150,9 @@ print(conserved(w))
 
 figure(figsize=(18,10))
 for iplot in range(50):
-    for istep in range(10):
-        # w = solve(midpoint_res, w, (w,))
-        w = solve(midpoint_res, w, (w,), verbose=False)
+    for istep in range(1):
+        w = solve(midpoint_res, w, (w,))
+        # w = solve(midpoint_res, w, (w,), verbose=False)
         w.obliviate()
     print(conserved(w))
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
