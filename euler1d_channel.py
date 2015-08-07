@@ -14,22 +14,7 @@ def T_ratio(M2):
 def p_ratio(M2):
     return T_ratio(M2)**(gamma / (gamma - 1))
 
-def inlet_condition(pt, Tt, p_over_rhoc_minus_u):
-    def inlet_resid(w):
-        r, ru, p = w
-        T = p / (r**2 * R)
-        c2 = gamma * p / r**2
-        M2 = (ru / r)**2 / c2
-        p_diff = pt - p * p_ratio(M2)
-        T_diff = Tt - T * T_ratio(M2)
-        p_over_rhoc = p / (r**2 * sqrt(c2))
-        u_diff = p_over_rhoc_minus_u - (p_over_rhoc - ru / r)
-        return array([p_diff, T_diff, u_diff])
-    r_guess = value(sqrt(pt / (R * Tt)))
-    w_guess = np.array([r_guess, 0.0, value(pt)])
-    return solve(inlet_resid, w_guess, verbose=False)
-
-T0, p0, M0 = 300., 101325., 0.5
+T0, p0, M0 = 300., 101325., 0.2
 
 pt_in = p0 * p_ratio(M0**2)
 Tt_in = T0 * T_ratio(M0**2)
@@ -44,8 +29,8 @@ c0 = sqrt(gamma * p0 / rho0)
 u0 = c0 * M0
 
 L = 10.
-dx = 0.02
-dt = 5 * dx / u0
+dx = 0.2
+dt = dx / u0
 N = int(L / dx)
 x = arange(N) * dx + 0.5 * dx
 
@@ -69,7 +54,7 @@ def apply_bc(w):
     # inlet
     r, ru, p = w[0,:]
     c = sqrt(gamma) * sqrt(p) / r
-    R_plus = 2 * ct_in / (gamma - 1)
+    R_plus = ct_in * M0 + 2 * ct_in / (gamma - 1)
     R_minus = ru / r - 2 * c / (gamma - 1)
     S = pt_in / rhot_in**gamma
 
@@ -85,7 +70,7 @@ def apply_bc(w):
     c = sqrt(gamma) * sqrt(p) / r
     R_plus = ru / r + 2 * c / (gamma - 1)
     S = p / r**(2 * gamma)
-    R_minus = -2 * c_out / (gamma - 1)
+    R_minus = c_out * M0 - 2 * c_out / (gamma - 1)
 
     u_ext = (R_plus + R_minus) / 2
     c_ext = (R_plus - R_minus) * (gamma - 1) / 4
@@ -124,7 +109,7 @@ def ddt_conserved(w, rhs_w):
 wave = 1 + 0.1 * sin(x / L * pi)**32
 rho = rho0 * wave
 p = p0 * wave**gamma
-u = u0 * ones(wave.shape)
+u = u0 * zeros(wave.shape)
 
 w = zeros([N, 3])
 w[:,0] = sqrt(rho)
