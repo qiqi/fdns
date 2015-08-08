@@ -48,12 +48,20 @@ def diffx(w):
 def diffy(w):
     return (w[1:-1,2:] - w[1:-1,:-2]) / (2 * dy)
 
-def dissipation(w):
-    diffx = w[2:-2,4: ] - 4*w[2:-2,3:-1] + 6*w[2:-2,2:-2] \
-          + w[2:-2,:-4] - 4*w[2:-2,1:-3]
-    diffy = w[4: ,2:-2] - 4*w[3:-1,2:-2] + 6*w[2:-2,2:-2] \
-          + w[:-4,2:-2] - 4*w[1:-3,2:-2]
-    return (diffx + diffy) / 12
+def dissipation(r, u):
+    # conservative, negative definite dissipation applied to r*d(ru)/dt
+    def laplace(u):
+        # d2udx2 = u[2:,1:-1] - 2*u[1:-1,1:-1] + u[:-2,1:-1]
+        # d2udy2 = u[1:-1,2:] - 2*u[1:-1,1:-1] + u[1:-1,:-2]
+        d2udx2 = vstack([u[1:2,:] - u[:1,:],
+                         u[2:,:] - 2*u[1:-1,:] + u[:-2,:],
+                         u[-1:,:] - u[-2:-1,:]])
+        d2udy2 = hstack([u[:,1:2] - u[:,:1],
+                         u[:,2:] - 2*u[:,1:-1] + u[:,:-2],
+                         u[:,-1:] - u[:,-2:-1]])
+        return (d2udx2 + d2udy2) / 4
+    rho = r * r
+    return laplace(rho * laplace(u))
 
 def rhs(w):
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
@@ -63,13 +71,19 @@ def rhs(w):
     momentum_x = (diffx(ru*ru) + (r*ru)[1:-1,1:-1] * diffx(u)) / 2.0 \
                + (diffy(rv*ru) + (r*rv)[1:-1,1:-1] * diffy(u)) / 2.0 \
                + diffx(p)
-    momentum_x[1:-1,1:-1] += dissipation(r * ru) * c0 / dx * DISS_COEFF
     momentum_y = (diffx(ru*rv) + (r*ru)[1:-1,1:-1] * diffx(v)) / 2.0 \
                + (diffy(rv*rv) + (r*rv)[1:-1,1:-1] * diffy(v)) / 2.0 \
                + diffy(p)
-    momentum_y[1:-1,1:-1] += dissipation(r * rv) * c0 / dx * DISS_COEFF
     energy = gamma * (diffx(p * u) + diffy(p * v)) \
            - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
+
+    dissipation_x = dissipation(r[1:-1,1:-1], u[1:-1,1:-1]) * c0 / dx
+    dissipation_y = dissipation(r[1:-1,1:-1], v[1:-1,1:-1]) * c0 / dy
+    dissipation_x *= DISS_COEFF
+    dissipation_y *= DISS_COEFF
+    momentum_x += dissipation_x
+    momentum_y += dissipation_y
+    energy -= u[1:-1,1:-1] * dissipation_x + v[1:-1,1:-1] * dissipation_y
 
     rhs_w = zeros(w[1:-1,1:-1].shape)
     rhs_w[:,:,0] = 0.5 * mass / r[1:-1,1:-1]
