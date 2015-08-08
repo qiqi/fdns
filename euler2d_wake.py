@@ -126,7 +126,7 @@ def apply_bc(w):
     r_ext = (c_ext**2 / gamma / S) ** (0.5 / (gamma - 1))
     p_ext = (r_ext * c_ext)**2 / gamma
 
-    w_ext[-1,1:-1,:] = transpose([r_ext, r_ext * u_ext, rv * 0, p_ext])
+    w_ext[-1,1:-1,:] = transpose([r_ext, r_ext * u_ext, r_ext * rv / r, p_ext])
 
     # upper wall
     w_ext[:,0] = w_ext[:,1]
