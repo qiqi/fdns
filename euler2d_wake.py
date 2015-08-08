@@ -9,7 +9,7 @@ from numpy import *
 from numpad import *
 
 gamma, R = 1.4, 287.
-DISS_COEFF = 0.01
+DISS_COEFF = float(open('DISS_COEFF.txt').read().strip())
 
 def T_ratio(M2):
     return 1 + (gamma - 1) / 2 * M2
