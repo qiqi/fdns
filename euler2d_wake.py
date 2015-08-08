@@ -9,6 +9,7 @@ from numpy import *
 from numpad import *
 
 gamma, R = 1.4, 287.
+DISS_COEFF = 0.01
 
 def T_ratio(M2):
     return 1 + (gamma - 1) / 2 * M2
@@ -47,7 +48,7 @@ def diffx(w):
 def diffy(w):
     return (w[1:-1,2:] - w[1:-1,:-2]) / (2 * dy)
 
-def diffusion(w):
+def dissipation(w):
     diffx = w[2:-2,4: ] - 4*w[2:-2,3:-1] + 6*w[2:-2,2:-2] \
           + w[2:-2,:-4] - 4*w[2:-2,1:-3]
     diffy = w[4: ,2:-2] - 4*w[3:-1,2:-2] + 6*w[2:-2,2:-2] \
@@ -62,11 +63,11 @@ def rhs(w):
     momentum_x = (diffx(ru*ru) + (r*ru)[1:-1,1:-1] * diffx(u)) / 2.0 \
                + (diffy(rv*ru) + (r*rv)[1:-1,1:-1] * diffy(u)) / 2.0 \
                + diffx(p)
-    momentum_x[1:-1,1:-1] += diffusion(r * ru) * c0 / dx
+    momentum_x[1:-1,1:-1] += dissipation(r * ru) * c0 / dx * DISS_COEFF
     momentum_y = (diffx(ru*rv) + (r*ru)[1:-1,1:-1] * diffx(v)) / 2.0 \
                + (diffy(rv*rv) + (r*rv)[1:-1,1:-1] * diffy(v)) / 2.0 \
                + diffy(p)
-    momentum_y[1:-1,1:-1] += diffusion(r * rv) * c0 / dx
+    momentum_y[1:-1,1:-1] += dissipation(r * rv) * c0 / dx * DISS_COEFF
     energy = gamma * (diffx(p * u) + diffy(p * v)) \
            - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
 
