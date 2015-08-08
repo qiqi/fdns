@@ -1,5 +1,6 @@
 import matplotlib
-matplotlib.interactive(True)
+matplotlib.use('agg')
+matplotlib.interactive(False)
 
 import time
 from pylab import *
@@ -7,6 +8,7 @@ from numpy import *
 from numpad import *
 
 gamma, R = 1.4, 287.
+DISS_COEFF = 1.0
 
 def T_ratio(M2):
     return 1 + (gamma - 1) / 2 * M2
@@ -41,20 +43,50 @@ def diffx(w):
 def diffy(w):
     return (w[1:-1,2:] - w[1:-1,:-2]) / (2 * dy)
 
+def dissipation(r, u):
+    # conservative, negative definite dissipation applied to r*d(ru)/dt
+    def laplace(u):
+        # d2udx2 = u[2:,1:-1] - 2*u[1:-1,1:-1] + u[:-2,1:-1]
+        # d2udy2 = u[1:-1,2:] - 2*u[1:-1,1:-1] + u[1:-1,:-2]
+        d2udx2 = vstack([u[1:2,:] - u[:1,:],
+                         u[2:,:] - 2*u[1:-1,:] + u[:-2,:],
+                        -u[-1:,:] + u[-2:-1,:]])
+        d2udy2 = hstack([u[:,1:2] - u[:,:1],
+                         u[:,2:] - 2*u[:,1:-1] + u[:,:-2],
+                        -u[:,-1:] + u[:,-2:-1]])
+        return (d2udx2 + d2udy2) / 4
+    rho = r * r
+    return laplace(rho * laplace(u))
+
 def rhs(w):
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
     u, v = ru / r, rv / r
 
+    mass = diffx(r * ru) + diffy(r * rv)
+    momentum_x = (diffx(ru*ru) + (r*ru)[1:-1,1:-1] * diffx(u)) / 2.0 \
+               + (diffy(rv*ru) + (r*rv)[1:-1,1:-1] * diffy(u)) / 2.0 \
+               + diffx(p)
+    momentum_y = (diffx(ru*rv) + (r*ru)[1:-1,1:-1] * diffx(v)) / 2.0 \
+               + (diffy(rv*rv) + (r*rv)[1:-1,1:-1] * diffy(v)) / 2.0 \
+               + diffy(p)
+    energy = gamma * (diffx(p * u) + diffy(p * v)) \
+           - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
+
+    dissipation_x = dissipation(r[1:-1,1:-1], u[1:-1,1:-1]) * c0 / dx
+    dissipation_y = dissipation(r[1:-1,1:-1], v[1:-1,1:-1]) * c0 / dy
+    dissipation_x *= DISS_COEFF
+    dissipation_y *= DISS_COEFF
+    momentum_x += dissipation_x
+    momentum_y += dissipation_y
+    energy -= (gamma - 1) * (u[1:-1,1:-1] * dissipation_x \
+                           + v[1:-1,1:-1] * dissipation_y)
+
     rhs_w = zeros(w[1:-1,1:-1].shape)
-    rhs_w[:,:,0] = 0.5 * (diffx(r * ru) + diffy(r * rv)) / r[1:-1,1:-1]
-    rhs_w[:,:,1] = ((diffx(ru*ru) + (r*ru)[1:-1,1:-1] * diffx(u)) / 2.0 \
-                  + (diffy(rv*ru) + (r*rv)[1:-1,1:-1] * diffy(u)) / 2.0 \
-                  + diffx(p)) / r[1:-1,1:-1]
-    rhs_w[:,:,2] = ((diffx(ru*rv) + (r*ru)[1:-1,1:-1] * diffx(v)) / 2.0 \
-                  + (diffy(rv*rv) + (r*rv)[1:-1,1:-1] * diffy(v)) / 2.0 \
-                  + diffy(p)) / r[1:-1,1:-1]
-    rhs_w[:,:,-1] = gamma * (diffx(p * u) + diffy(p * v)) \
-            - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
+    rhs_w[:,:,0] = 0.5 * mass / r[1:-1,1:-1]
+    rhs_w[:,:,1] = momentum_x / r[1:-1,1:-1]
+    rhs_w[:,:,2] = momentum_y / r[1:-1,1:-1]
+    rhs_w[:,:,-1] = energy
+
     return rhs_w
 
 def apply_bc(w):
@@ -119,7 +151,7 @@ w[:,:,1] = sqrt(rho) * u
 w[:,:,2] = sqrt(rho) * v
 w[:,:,-1] = p
 
-# w *= 0.9 + 0.2 * random.random(w.shape)
+w *= 0.9 + 0.2 * random.random(w.shape)
 
 print(ddt_conserved(w, rhs(apply_bc(w))))
 
@@ -127,8 +159,8 @@ print(conserved(w))
 
 for iplot in range(50):
     for istep in range(1):
-        # w = solve(midpoint_res, w, (w,))
-        w = solve(midpoint_res, w, (w,), verbose=False)
+        w = solve(midpoint_res, w, (w,), rel_tol=1E-9)
+        # w = solve(midpoint_res, w, (w,), verbose=False)
         w.obliviate()
     print(conserved(w))
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]

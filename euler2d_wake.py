@@ -55,10 +55,10 @@ def dissipation(r, u):
         # d2udy2 = u[1:-1,2:] - 2*u[1:-1,1:-1] + u[1:-1,:-2]
         d2udx2 = vstack([u[1:2,:] - u[:1,:],
                          u[2:,:] - 2*u[1:-1,:] + u[:-2,:],
-                         u[-1:,:] - u[-2:-1,:]])
+                        -u[-1:,:] + u[-2:-1,:]])
         d2udy2 = hstack([u[:,1:2] - u[:,:1],
                          u[:,2:] - 2*u[:,1:-1] + u[:,:-2],
-                         u[:,-1:] - u[:,-2:-1]])
+                        -u[:,-1:] + u[:,-2:-1]])
         return (d2udx2 + d2udy2) / 4
     rho = r * r
     return laplace(rho * laplace(u))
@@ -83,7 +83,8 @@ def rhs(w):
     dissipation_y *= DISS_COEFF
     momentum_x += dissipation_x
     momentum_y += dissipation_y
-    energy -= u[1:-1,1:-1] * dissipation_x + v[1:-1,1:-1] * dissipation_y
+    energy -= (gamma - 1) * (u[1:-1,1:-1] * dissipation_x \
+                           + v[1:-1,1:-1] * dissipation_y)
 
     rhs_w = zeros(w[1:-1,1:-1].shape)
     rhs_w[:,:,0] = 0.5 * mass / r[1:-1,1:-1]
