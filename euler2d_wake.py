@@ -29,7 +29,7 @@ R_minus_out = c0 * M0 - 2 * c0 / (gamma - 1)
 
 Lx, Ly = 20., 5.
 dx = dy = 0.1
-dt = dx / u0
+dt = dx / u0 * 0.4
 Nx, Ny = int(Lx / dx), int(Ly / dy)
 x = arange(Nx) * dx + 0.5 * dx - 0.1 * Lx
 y = arange(Ny) * dy + 0.5 * dy - 0.5 * Ly
@@ -42,13 +42,16 @@ i_obstacle_ext = slice((x_ext < -1).sum(), (x_ext < 1).sum())
 j_obstacle = slice((y < -.5).sum(), (y < .5).sum())
 j_obstacle_ext = slice((y_ext < -.5).sum(), (y_ext < .5).sum())
 
+dc = np.exp((x[0] - x) * np.log(100)) + np.exp((x - x[-1]) * np.log(100))
+dc = (1 + 100 * np.outer(dc, np.ones(y.size))) * DISS_COEFF
+
 def diffx(w):
     return (w[2:,1:-1] - w[:-2,1:-1]) / (2 * dx)
 
 def diffy(w):
     return (w[1:-1,2:] - w[1:-1,:-2]) / (2 * dy)
 
-def dissipation(r, u):
+def dissipation(r, u, dc):
     # conservative, negative definite dissipation applied to r*d(ru)/dt
     def laplace(u):
         # d2udx2 = u[2:,1:-1] - 2*u[1:-1,1:-1] + u[:-2,1:-1]
@@ -61,7 +64,7 @@ def dissipation(r, u):
                         -u[:,-1:] + u[:,-2:-1]])
         return (d2udx2 + d2udy2) / 4
     rho = r * r
-    return laplace(rho * laplace(u))
+    return laplace(dc * rho * laplace(u))
 
 def rhs(w):
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
@@ -77,10 +80,8 @@ def rhs(w):
     energy = gamma * (diffx(p * u) + diffy(p * v)) \
            - (gamma - 1) * (u[1:-1,1:-1] * diffx(p) + v[1:-1,1:-1] * diffy(p))
 
-    dissipation_x = dissipation(r[1:-1,1:-1], u[1:-1,1:-1]) * c0 / dx
-    dissipation_y = dissipation(r[1:-1,1:-1], v[1:-1,1:-1]) * c0 / dy
-    dissipation_x *= DISS_COEFF
-    dissipation_y *= DISS_COEFF
+    dissipation_x = dissipation(r[1:-1,1:-1], u[1:-1,1:-1], dc) * c0 / dx
+    dissipation_y = dissipation(r[1:-1,1:-1], v[1:-1,1:-1], dc) * c0 / dy
     momentum_x += dissipation_x
     momentum_y += dissipation_y
     energy -= (gamma - 1) * (u[1:-1,1:-1] * dissipation_x \
