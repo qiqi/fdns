@@ -27,8 +27,8 @@ R_plus_in = c0 * M0 + 2 * c0 / (gamma - 1)
 S_in = p0 / rho0**gamma
 R_minus_out = c0 * M0 - 2 * c0 / (gamma - 1)
 
-Lx, Ly = 20., 5.
-dx = dy = 0.1
+Lx, Ly = 15., 5.
+dx = dy = 0.25
 dt = dx / u0 * 0.4
 Nx, Ny = int(Lx / dx), int(Ly / dy)
 x = arange(Nx) * dx + 0.5 * dx - 0.1 * Lx
