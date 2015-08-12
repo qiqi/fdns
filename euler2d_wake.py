@@ -43,7 +43,7 @@ j_obstacle = slice((y < -.5).sum(), (y < .5).sum())
 j_obstacle_ext = slice((y_ext < -.5).sum(), (y_ext < .5).sum())
 
 dc = np.exp((x[0] - x) * np.log(100)) + np.exp((x - x[-1]) * np.log(100))
-dc = (1 + 100 * np.outer(dc, np.ones(y.size))) * DISS_COEFF
+dc = np.outer(dc, np.ones(y.size)) * DISS_COEFF
 
 def diffx(w):
     return (w[2:,1:-1] - w[:-2,1:-1]) / (2 * dx)
