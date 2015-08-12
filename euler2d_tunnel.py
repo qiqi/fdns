@@ -17,7 +17,7 @@ c0 = sqrt(gamma * R * T0)
 u0 = c0 * M0
 w0 = np.array([np.sqrt(rho0), np.sqrt(rho0) * u0, 0., p0])
 
-Lx, Ly = 15., 5.
+Lx, Ly = 25., 5.
 dx = dy = 0.25
 dt = dx / u0 * 0.5
 Nx, Ny = int(Lx / dx), int(Ly / dy)
@@ -27,8 +27,8 @@ y = arange(Ny) * dy + 0.5 * dy - 0.5 * Ly
 i_obstacle = slice((x < -1).sum(), (x < 1).sum())
 j_obstacle = slice((y < -.5).sum(), (y < .5).sum())
 
-dc = np.sin(x / Lx * pi)**64
-dc = np.outer(dc, np.ones(y.size)) * DISS_COEFF
+dc = np.cos((x / Lx - 0.2) * pi)**64
+dc = np.outer(dc, np.ones(y.size))
 
 def diffx(w):
     return (roll(w, -1, axis=0) - roll(w, 1, axis=0)) / (2 * dx)
@@ -58,8 +58,8 @@ def rhs(w):
     energy = gamma * (diffx(p * u) + diffy(p * v)) \
            - (gamma - 1) * (u * diffx(p) + v * diffy(p))
 
-    dissipation_x = dissipation(r, u, dc) * c0 / dx
-    dissipation_y = dissipation(r, v, dc) * c0 / dy
+    dissipation_x = dissipation(r, u, DISS_COEFF) * c0 / dx
+    dissipation_y = dissipation(r, v, DISS_COEFF) * c0 / dy
     momentum_x += dissipation_x
     momentum_y += dissipation_y
     energy -= (gamma - 1) * (u * dissipation_x + v * dissipation_y)
