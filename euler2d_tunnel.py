@@ -27,7 +27,7 @@ y = arange(Ny) * dy + 0.5 * dy - 0.5 * Ly
 i_obstacle = slice((x < -1).sum(), (x < 1).sum())
 j_obstacle = slice((y < -.5).sum(), (y < .5).sum())
 
-dc = np.cos((x / Lx - 0.2) * pi)**64
+dc = np.cos((x / Lx + 0.2) * pi)**64
 dc = np.outer(dc, np.ones(y.size))
 
 def diffx(w):
