@@ -58,11 +58,17 @@ def rhs(w):
     energy = gamma * (diffx(p * u) + diffy(p * v)) \
            - (gamma - 1) * (u * diffx(p) + v * diffy(p))
 
+    one = np.ones(r.shape)
+    dissipation_r = dissipation(one, r*r, DISS_COEFF) * c0 / dx
     dissipation_x = dissipation(r, u, DISS_COEFF) * c0 / dx
     dissipation_y = dissipation(r, v, DISS_COEFF) * c0 / dy
+    dissipation_p = dissipation(one, p, DISS_COEFF) * c0 / dx
+
+    mass += dissipation_r
     momentum_x += dissipation_x
     momentum_y += dissipation_y
-    energy -= (gamma - 1) * (u * dissipation_x + v * dissipation_y)
+    energy += dissipation_p \
+            - (gamma - 1) * (u * dissipation_x + v * dissipation_y)
 
     rhs_w = zeros(w.shape)
     rhs_w[:,:,0] = 0.5 * mass / r
