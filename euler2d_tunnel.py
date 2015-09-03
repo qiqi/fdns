@@ -4,9 +4,14 @@ matplotlib.interactive(False)
 
 import sys
 import time
+import argparse
 from pylab import *
 from numpy import *
 from numpad import *
+
+# ---------------------------------------------------------------------------- #
+#                                 PROBLEM SET UP                               #
+# ---------------------------------------------------------------------------- #
 
 DISS_COEFF = float(open('DISS_COEFF.txt').read().strip())
 gamma, R = 1.4, 287.
@@ -29,6 +34,10 @@ j_obstacle = slice((y < -.5).sum(), (y < .5).sum())
 
 dc = np.cos((x / Lx + 0.2) * pi)**64
 dc = np.outer(dc, np.ones(y.size))
+
+# ---------------------------------------------------------------------------- #
+#                        FINITE DIFFERENCE DISCRETIZATION                      #
+# ---------------------------------------------------------------------------- #
 
 def diffx(w):
     return (roll(w, -1, axis=0) - roll(w, 1, axis=0)) / (2 * dx)
@@ -78,6 +87,10 @@ def rhs(w):
 def midpoint_res(w1, w0):
     return (w1 - w0) / dt + rhs(0.5 * (w0 + w1))
 
+# ---------------------------------------------------------------------------- #
+#                              TESTS FOR CONSERVATION                          #
+# ---------------------------------------------------------------------------- #
+
 def conserved(w):
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
     rho, u, v = r * r, ru / r, rv / r
@@ -106,8 +119,21 @@ def ddt_conserved(w, rhs_w):
             + 0.5 * ddt_rhou2.sum() + 0.5 * ddt_rhov2.sum()
     return ddt_mass, ddt_momentum_x, ddt_momentum_y, ddt_energy
 
-w = zeros([Nx, Ny, 4]) + w0
-w[:,:,1] *= 1 + 0.01 * (random.random(w[:,:,1].shape) - 0.5)
+# ---------------------------------------------------------------------------- #
+#                                   MAIN PROGRAM                               #
+# ---------------------------------------------------------------------------- #
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--restart', type=str, default='')
+args = parser.parse_args()
+
+if len(args.restart) == 0:
+    w = zeros([Nx, Ny, 4]) + w0
+    w[:,:,1] *= 1 + 0.01 * (random.random(w[:,:,1].shape) - 0.5)
+else:
+    print('restarting from ', args.restart)
+    w = load(args.restart)
+    assert w.shape == (Nx, Ny, 4)
 
 print(ddt_conserved(w, rhs(w)))
 
@@ -115,11 +141,13 @@ print(conserved(w))
 
 figure(figsize=(18,10))
 for iplot in range(5000):
-    for istep in range(10):
+    nStepPerPlot = 10
+    for istep in range(nStepPerPlot):
         print(r'<br>')
         w = solve(midpoint_res, w, (w,), rel_tol=1E-9)
         w.obliviate()
         sys.stdout.flush()
+        np.save('w{0:06d}'.format(iplot * nStepPerPlot + istep), value(w))
     print(r'<br>')
     print(conserved(w))
     r, ru, rv, p = w[:,:,0], w[:,:,1], w[:,:,2], w[:,:,-1]
